@@ -1,0 +1,8 @@
+Flask==2.3.3
+flask-mysqldb==1.0.1
+PyMySQL==1.1.0
+cryptography==41.0.7
+passlib==1.7.4
+python-dotenv==1.1.0
+pyope==0.2.2
+Werkzeug==2.3.7
