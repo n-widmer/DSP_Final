@@ -32,6 +32,7 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor' #account always returns a dictona
 
 mysql = MySQL(app)
 
+#Need way to differentiate User profiles
 def get_group_table(group_value):
     if group_value == 'H':
         return 'GroupH'
@@ -46,10 +47,11 @@ def index():
     return render_template("index.html")
 
 
+#Register a user
 @app.route("/register_group", methods=['GET', 'POST'])
 def register_user():
     message = ""
-    if request.method == 'POST':
+    if request.method == 'POST': #Make sure register form has required fields
         if 'username' in request.form and 'password' in request.form and 'group' in request.form:
             username = request.form['username']
             password = request.form['password']
@@ -72,7 +74,7 @@ def register_user():
                 cursor.close()
                 return render_template("register_group.html", message=message)
 
-            # Insert into that group table
+            # Insert into that group table specified in the register form
             hashed_password = generate_password_hash(
                 password,
                 method='pbkdf2:sha256',
@@ -95,6 +97,7 @@ def login_user():
     message = ""
     cursor = mysql.connection.cursor()
 
+    #Grab all the information entered on the login form
     if request.method == 'POST':
         if 'username' in request.form and 'password' in request.form:
             username = request.form['username']
@@ -102,19 +105,25 @@ def login_user():
             group_value = request.form['group']
             table = get_group_table(group_value)
 
+            #Valid the group is of H or R 
+            # (The only options we have, but good pratice to check)
             if table is None:
                 message = "inavlid group!"
                 return render_template("login.html", message=message)
 
+
+            #Generate query and execute on the database
             cursor = mysql.connection.cursor()
             query = f"SELECT * FROM {table} WHERE username = %s;"
             cursor.execute(query, (username,))
             account = cursor.fetchone()
             cursor.close()
 
+            # If a username match is found they do have an account
             if account:
                 stored_password = account['password']
 
+                #Check that input password hash matches original hash
                 if(check_password_hash(stored_password, password)):
                     message = "login success!"
                     session['username'] = username
