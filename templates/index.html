@@ -31,7 +31,8 @@
         <a href="{{url_for('index')}}">Home</a>
         <a href="{{url_for('register_user')}}">Register</a>
         <a href="{{url_for('login_user')}}">Login</a>
-        {% if email %}
+        {% if username and group %}
+        <a href="{{ url_for('admin_page') }}">Admin Panel</a>
         <a href="{{url_for('logout_user')}}">Logout</a>
         {% endif %}
     </div>
