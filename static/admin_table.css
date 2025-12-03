@@ -1,0 +1,108 @@
+/* Admin panel container */
+.admin-panel {
+    margin-top: 28px;
+}
+
+/* Optional: refine header inside admin panel */
+.admin-header h1 {
+    margin-bottom: 4px;
+}
+
+.admin-subtitle {
+    margin-top: 4px;
+    font-size: 0.9rem;
+    color: #9ca3af;
+}
+
+.admin-subtitle.warning {
+    color: #fbbf24;
+}
+
+/* Table wrapper */
+.table-wrapper {
+    margin-top: 18px;
+    padding: 14px 14px 10px;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), transparent 55%)
+        rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.85);
+    overflow-x: auto;
+}
+
+/* Patients table */
+.patients-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    color: #f9fafb;
+}
+
+.patients-table thead {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.22), rgba(56, 189, 248, 0.14));
+}
+
+.patients-table th,
+.patients-table td {
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.patients-table th {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #e5e7eb;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.6);
+}
+
+.patients-table tbody tr:nth-child(odd) {
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.patients-table tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.95);
+}
+
+.patients-table tbody tr:hover {
+    background: rgba(30, 64, 175, 0.4);
+    transition: background-color 0.12s ease;
+}
+
+.patients-table td {
+    border-bottom: 1px solid rgba(30, 64, 175, 0.45);
+}
+
+/* Long text cell */
+.patients-table td.cell-history {
+    max-width: 360px;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+/* Empty state row */
+.patients-table td.empty-row {
+    text-align: center;
+    padding: 14px 10px;
+    color: #9ca3af;
+    font-size: 0.92rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+    .table-wrapper {
+        padding: 10px 10px 8px;
+        border-radius: 16px;
+    }
+
+    .patients-table th,
+    .patients-table td {
+        padding: 7px 8px;
+    }
+
+    .patients-table td.cell-history {
+        max-width: 260px;
+    }
+}

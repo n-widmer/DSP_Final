@@ -4,16 +4,31 @@ import re
 from flask import Flask, render_template, request, session
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
+input_file = '.env'
+variables = {}
+with open(input_file, 'r') as f:
+    for line in f:
+        line = line.strip()
+        if '=' in line:
+            key, value = line.split('=', 1)
+            variables[key] = value
 
-app.config['MYSQL_CURSORCLASS'] = 'DictCursor' # to ensure out 'account' always returns a dictionary
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
-app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
-app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
-app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
-app.secret_key = os.getenv('SECRET_KEY')
+DSP_SECRET_KEY = variables['DSP_SECRET_KEY']
+MYSQL_HOST = variables['MYSQL_HOST']
+MYSQL_USER = variables['MYSQL_USER']
+MYSQL_PASSWORD = variables['MYSQL_PASSWORD']
+MYSQL_DB = variables['MYSQL_DB']
+
+app.secret_key = DSP_SECRET_KEY
+app.config["MYSQL_HOST"] = MYSQL_HOST
+app.config["MYSQL_USER"] = MYSQL_USER
+app.config["MYSQL_PASSWORD"] = MYSQL_PASSWORD
+app.config["MYSQL_DB"] = MYSQL_DB
+app.config['MYSQL_CURSORCLASS'] = 'DictCursor' #account always returns a dictonary
 
 mysql = MySQL(app)
 
@@ -69,7 +84,7 @@ def register_user():
             cursor.close()
 
             message = "You have successfully registered."
-            return render_template("index.html", message=message, username=username)
+            return render_template("Admin.html", message=message, username=username, group=group_value)
 
     # GET or missing fields
     return render_template("register_group.html", message=message)
@@ -84,28 +99,61 @@ def login_user():
         if 'username' in request.form and 'password' in request.form:
             username = request.form['username']
             password = request.form['password']
+            group_value = request.form['group']
+            table = get_group_table(group_value)
+
+            if table is None:
+                message = "inavlid group!"
+                return render_template("login.html", message=message)
 
             cursor = mysql.connection.cursor()
-            query = "SELECT * FROM Users WHERE username = %s;"
+            query = f"SELECT * FROM {table} WHERE username = %s;"
             cursor.execute(query, (username,))
             account = cursor.fetchone()
             cursor.close()
 
             if account:
                 stored_password = account['password']
-                email = account['email']
-                if check_password_hash(stored_password, password):
-                    message = "Login Successful"
-                    return render_template("index.html", message=message, email=email, username=username)
-                else:
-                    
-                    message = "Invalid email or password"
-                    return render_template("login.html", message=message)
 
+                if(check_password_hash(stored_password, password)):
+                    message = "login success!"
+                    session['username'] = username
+                    session['group'] = group_value
+                    return render_template("index.html", message=message, username=username, group=group_value)
+                else:
+                    message = "invalid username or password"
+                    return render_teplate("login.html", message=message)
             else:
-                message = "Invalid email or password"
-                return render_template("login.html", message=message)
-    return render_template("login.html")
+                message = 'invalid username or password'
+                return render_template('login.html', message=message)
+        return render_template("login.html", message=message)
+    return render_template("login.html", message=message)
+
+@app.route("/Admin", methods=['GET'])
+def admin_page():
+    username = session.get('username')
+    group = session.get('group')
+    cursor = mysql.connection.cursor()
+
+    if group == 'H':
+        query = """
+        SELECT first_name, last_name, Gender, Age, Weight, Height, health_history
+        FROM Patients
+        """
+        cursor.execute(query)
+        patients = cursor.fetchall()
+        show_names = True
+    else:
+        query = """
+        SELECT Gender,Age, Weight, Height, health_history
+        FROM Patients
+        """
+        cursor.execute(query)
+        patients = cursor.fetchall()
+        show_names = False
+
+    cursor.close()
+    return render_template("admin.html", username=username, group=group, patients=patients, show_names=show_names)
 
 
 @app.route("/logout", methods=['GET', 'POST'])
