@@ -1,291 +1,50 @@
-/* ==========
-   Design tokens
-   ========== */
-   :root {
-    --bg: #050816;
-    --bg-elevated: #0b1020;
-    --bg-elevated-soft: #111728;
-    --accent: #4f46e5;
-    --accent-soft: rgba(79, 70, 229, 0.12);
-    --accent-strong: #6366f1;
-    --accent-gradient: linear-gradient(135deg, #6366f1, #22c1c3);
-    --text-main: #f9fafb;
-    --text-muted: #9ca3af;
-    --border-subtle: rgba(148, 163, 184, 0.25);
-    --danger: #f97373;
-    --radius-lg: 18px;
-    --radius-md: 12px;
-    --shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.55);
-    --shadow-subtle: 0 10px 25px rgba(15, 23, 42, 0.8);
-}
+/* Basic layout for the home / main page content.
+   Kept intentionally simple. */
 
-/* Reset */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-/* Base layout */
-body {
-    min-height: 100vh;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-    color: var(--text-main);
-    background:
-        radial-gradient(circle at top left, rgba(56, 189, 248, 0.2), transparent 55%),
-        radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.2), transparent 55%),
-        var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 32px 16px;
-}
-
-/* Main wrapper if you are using section.content */
-section.content {
+/* A wrapper for the main content area on the home page */
+.home-wrapper {
     width: 100%;
-    max-width: 880px;
-    margin-top: 28px;
-    padding: 28px 26px 30px;
-    background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.16), transparent 55%) var(--bg-elevated);
-    border-radius: 24px;
-    box-shadow: var(--shadow-soft);
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    backdrop-filter: blur(22px);
+    max-width: 900px;
+    margin-top: 20px;
 }
 
-/* Header */
-h1 {
-    font-size: 2.4rem;
-    line-height: 1.15;
-    text-align: center;
-    letter-spacing: 0.04em;
-    background-image: var(--accent-gradient);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 6px;
-    font-weight: 700;
-}
-
-h1 span {
-    display: block;
-    margin-top: 6px;
-    font-size: 0.95rem;
-    color: var(--text-muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-/* Top navigation bar */
-.topnav {
-    margin-top: 18px;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    box-shadow: var(--shadow-subtle);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    backdrop-filter: blur(18px);
-}
-
-.topnav a {
-    position: relative;
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    padding: 8px 16px;
-    border-radius: 999px;
-    transition:
-        background-color 0.18s ease,
-        color 0.18s ease,
-        transform 0.15s ease;
-}
-
-.topnav a::after {
-    content: "";
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 6px;
-    height: 2px;
-    background: var(--accent-gradient);
-    border-radius: 999px;
-    opacity: 0;
-    transform: translateY(4px);
-    transition: opacity 0.16s ease, transform 0.16s ease;
-}
-
-.topnav a:hover {
-    background: var(--accent-soft);
-    color: var(--text-main);
-    transform: translateY(-1px);
-}
-
-.topnav a:hover::after {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* If you use an "active" class on the current nav link */
-.topnav a.active {
-    background: rgba(79, 70, 229, 0.16);
-    color: var(--text-main);
-}
-
-/* Flash / status messages */
-.flash {
-    margin-top: 16px;
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(248, 113, 113, 0.5);
-    background: linear-gradient(
-        120deg,
-        rgba(248, 113, 113, 0.22),
-        rgba(248, 113, 113, 0.12)
-    );
-    color: #fee2e2;
-    font-size: 0.9rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 8px 18px rgba(127, 29, 29, 0.35);
-}
-
-/* Optional little icon circle for flash if you want to add one via HTML */
-.flash::before {
-    content: "!";
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 999px;
-    background: rgba(248, 250, 252, 0.2);
-    font-weight: 700;
-    font-size: 0.8rem;
-}
-
-/* Form layout (for your register/login pages) */
-.container {
-    width: 100%;
-    max-width: 520px;
-    margin: 26px auto 0;
-    padding: 26px 24px 28px;
-    background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.18), transparent 58%) var(--bg-elevated-soft);
-    border-radius: 22px;
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-soft);
-}
-
-.container h1.headone {
-    font-size: 1.7rem;
-    margin-bottom: 10px;
-    text-align: left;
-    background-image: var(--accent-gradient);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.container > p {
-    font-size: 0.92rem;
-    color: var(--text-muted);
-    margin-bottom: 18px;
-}
-
-/* Form groups */
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+/* Simple card-style section if you add any intro text */
+.home-card {
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 16px 14px 18px;
     margin-bottom: 16px;
 }
 
-.form-group label {
+/* A headline inside the home card */
+.home-card h2 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+}
+
+/* Paragraphs inside the card */
+.home-card p {
+    font-size: 0.95rem;
+    color: #444;
+    line-height: 1.5;
+}
+
+/* Optional list for describing features / steps */
+.home-list {
+    margin-top: 8px;
+    padding-left: 18px;
+}
+
+.home-list li {
     font-size: 0.9rem;
-    font-weight: 500;
-    color: #e5e7eb;
+    color: #444;
+    margin-bottom: 4px;
 }
 
-.form-group input,
-.form-group select {
-    padding: 10px 12px;
-    font-size: 0.92rem;
-    border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.5);
-    background: rgba(15, 23, 42, 0.9);
-    color: var(--text-main);
-    outline: none;
-    transition:
-        border-color 0.18s ease,
-        box-shadow 0.18s ease,
-        background-color 0.18s ease,
-        transform 0.12s ease;
-}
-
-.form-group input::placeholder {
-    color: rgba(148, 163, 184, 0.9);
-}
-
-.form-group input:focus,
-.form-group select:focus {
-    border-color: var(--accent-strong);
-    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.65);
-    transform: translateY(-1px);
-    background: rgba(15, 23, 42, 1);
-}
-
-/* Submit button */
-.form-group input[type="submit"] {
-    cursor: pointer;
+/* Small helper text style */
+.home-note {
+    font-size: 0.85rem;
+    color: #666;
     margin-top: 6px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    border-radius: 999px;
-    border: none;
-    background-image: var(--accent-gradient);
-    color: #0b1020;
-    box-shadow: 0 12px 28px rgba(79, 70, 229, 0.65);
-    transition:
-        transform 0.12s ease,
-        box-shadow 0.12s ease,
-        filter 0.12s ease;
-}
-
-.form-group input[type="submit"]:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.05);
-    box-shadow: 0 18px 40px rgba(79, 70, 229, 0.8);
-}
-
-.form-group input[type="submit"]:active {
-    transform: translateY(0);
-    box-shadow: 0 8px 18px rgba(79, 70, 229, 0.6);
-}
-
-/* Small-screen tweaks */
-@media (max-width: 640px) {
-    body {
-        padding: 20px 12px;
-    }
-
-    section.content {
-        padding: 22px 18px 24px;
-        border-radius: 18px;
-    }
-
-    .container {
-        margin-top: 20px;
-        padding: 22px 18px 24px;
-    }
-
-    h1 {
-        font-size: 2rem;
-    }
 }

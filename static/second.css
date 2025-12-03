@@ -1,155 +1,172 @@
-/* Reset browser defaults */
+/* Basic reset */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+/* Overall page */
 body {
     min-height: 100vh;
-    background: radial-gradient(circle at top left, #101827, #020617);
-    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #f9fafb;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #f2f2f2;
+    color: #222;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 32px 16px;
+    padding: 20px 10px;
 }
 
-/* Header Styling */
+/* Main heading at the top */
 h1 {
-    font-size: 2.4rem;
+    font-size: 1.8rem;
     text-align: center;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: linear-gradient(120deg, #38bdf8, #6366f1);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 8px;
-    font-weight: 800;
+    margin-bottom: 4px;
+    font-weight: 700;
 }
 
 h1 span {
     display: block;
-    margin-top: 6px;
-    font-size: 0.95rem;
-    color: #9ca3af;
-    letter-spacing: 0.12em;
+    font-size: 0.9rem;
+    color: #555;
 }
 
-/* Top Navigation */
+/* Top navigation bar */
 .topnav {
-    margin-top: 16px;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.92);
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+    margin-top: 12px;
+    background-color: #1f2933;
+    padding: 8px 10px;
+    border-radius: 4px;
     display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    backdrop-filter: blur(18px);
+    gap: 8px;
 }
 
 .topnav a {
-    position: relative;
+    color: #f9fafb;
     text-decoration: none;
     font-size: 0.9rem;
-    font-weight: 500;
-    color: #e5e7eb;
-    padding: 8px 16px;
-    border-radius: 999px;
-    transition:
-        background-color 0.18s ease,
-        color 0.18s ease,
-        transform 0.15s ease;
-}
-
-.topnav a::after {
-    content: "";
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 6px;
-    height: 2px;
-    background: linear-gradient(90deg, #38bdf8, #6366f1);
-    border-radius: 999px;
-    opacity: 0;
-    transform: translateY(4px);
-    transition: opacity 0.16s ease, transform 0.16s ease;
+    padding: 6px 10px;
+    border-radius: 3px;
 }
 
 .topnav a:hover {
-    background: rgba(15, 23, 42, 0.9);
-    color: #f9fafb;
-    transform: translateY(-1px);
+    background-color: #111827;
 }
 
-.topnav a:hover::after {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Section Block */
+/* Main content card (for home / admin wrapper) */
 section.content {
     width: 100%;
-    max-width: 880px;
-    margin-top: 32px;
-    background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.15), transparent 55%)
-                rgba(15, 23, 42, 0.96);
-    border-radius: 24px;
-    padding: 26px 24px 30px;
-    backdrop-filter: blur(22px);
-    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.95);
-    border: 1px solid rgba(148, 163, 184, 0.35);
+    max-width: 900px;
+    margin-top: 20px;
+    background-color: #ffffff;
+    border-radius: 4px;
+    padding: 16px 14px 18px;
+    border: 1px solid #d1d5db;
 }
 
-/* Flash Messages */
+/* Simple flash / message box */
 .flash {
-    margin-top: 16px;
-    padding: 12px 14px;
-    background: linear-gradient(
-        120deg,
-        rgba(248, 113, 113, 0.18),
-        rgba(248, 113, 113, 0.1)
-    );
-    border-left: 3px solid #fb7185;
-    border-radius: 12px;
-    color: #fecaca;
+    margin-top: 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    background-color: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
     font-size: 0.9rem;
-    font-weight: 500;
+}
+
+/* Form container (register / login) */
+.container {
+    width: 100%;
+    max-width: 450px;
+    margin: 20px auto 0;
+    padding: 16px 14px 18px;
+    background-color: #ffffff;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+}
+
+/* Form heading */
+.headone {
+    font-size: 1.4rem;
+    margin-bottom: 6px;
+}
+
+.container > p {
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 12px;
+}
+
+/* Form layout */
+form {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 10px;
-    box-shadow: 0 10px 25px rgba(127, 29, 29, 0.45);
 }
 
-.flash::before {
-    content: "!";
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    background: rgba(248, 250, 252, 0.18);
-    font-weight: 700;
-    font-size: 0.8rem;
+/* Each form group */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 6px;
 }
 
-/* Responsive tweaks */
+.form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Inputs and select */
+.form-group input,
+.form-group select,
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+    width: 100%;
+    padding: 8px 9px;
+    font-size: 0.9rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+/* Submit button */
+.form-group input[type="submit"],
+input[type="submit"] {
+    margin-top: 4px;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 3px;
+    background-color: #2563eb;
+    color: #f9fafb;
+    cursor: pointer;
+}
+
+.form-group input[type="submit"]:hover,
+input[type="submit"]:hover {
+    background-color: #1d4ed8;
+}
+
+/* Small responsiveness */
 @media (max-width: 640px) {
     body {
-        padding: 24px 12px;
-    }
-
-    h1 {
-        font-size: 2rem;
+        padding: 16px 8px;
     }
 
     section.content {
-        padding: 20px 16px 22px;
-        border-radius: 20px;
+        padding: 12px 10px 14px;
+    }
+
+    .container {
+        padding: 14px 10px 16px;
     }
 }
