@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+    <title>DSP Final Project</title>
+</head>
+
+<body>
+    <h1>Group 1: Data Security and Privacy Final Project <span>Fall 2025</span></h1>
+
+    {% if email %}
+    <p>Welcome, {{username}}</p>
+    {% endif %}
+
+    {% if message %}
+    <div class="Alert message-warning">{{ message }}</div>
+    {% endif %}
+
+    <br>
+    
+    <div class="topnav">
+        <a href="{{url_for('index')}}">Home</a>
+        <a href="{{url_for('register_user')}}">Register</a>
+        <a href="{{url_for('login_user')}}">Login</a>
+        {% if email %}
+        <a href="{{url_for('logout_user')}}">Logout</a>
+        {% endif %}
+    </div>
+    <br>
+
+    {% block body %} {% endblock %}
+</body>
+
+
+
+</html>
