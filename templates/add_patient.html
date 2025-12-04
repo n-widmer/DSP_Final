@@ -10,11 +10,7 @@
             <div class="flash">{{ message }}</div>
         {% endif %}
 
-<<<<<<< HEAD
-        <form action="{{ url_for('add_patient_route') }}" method="POST"> <!-- url and function name were mismatched i fixed -->
-=======
         <form action="{{ url_for('add_patient') }}" method="POST">
->>>>>>> main
             <div class="form-group">
                 <label for="first_name">First name:</label>
                 <input type="text" id="first_name" name="first_name" required>
