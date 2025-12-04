@@ -306,6 +306,62 @@ def admin_page():
 
 
 
+@app.route("/add_patient", methods=['GET', 'POST'])
+def add_patient():
+    username = session.get('username')
+    group = session.get('group')
+
+    if not username or group != 'H':
+        message = 'Only group H can Modify patients table!'
+        return render_template("login.html", message=message)
+    
+    if request.method == 'POST':
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        Gender = request.form['Gender']
+        Age = request.form['Age']
+        Weight = request.form['Weight']
+        Height = request.form['Height']
+        health_history = request.form['health_history']
+
+        #Check common errors?
+        errors = []
+        if not first_name:
+            errors.append('First name is required')
+        if not last_name:
+            errors.append("Last name is required")
+        if not Gender:
+            errors.append('Gender is required')
+
+        try:
+            weight_val = float(Weight)
+            height_val = float(Height)
+        except ValueError:
+            errors.append("Weight and height must be numbers")
+
+        if errors:
+            return render_template("add_patient.html", message=" ".join(errors), username=username, group=group)
+
+        
+        #All error checks have cleared
+        #Generate insert query for Patients table
+
+        cursor = mysql.connection.cursor()
+        query = """
+        INSERT INTO Patients (first_name, last_name, Gender, Age, Weight, Height, health_history)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (first_name, last_name, Gender, Age, Weight, Height, health_history))
+        mysql.connection.commit()
+        cursor.close()
+
+
+        #Go back to table view to see results
+        return redirect(url_for('admin_page'))
+
+    return render_template("add_patient.html", username=username, group=group, message=None)
+        
+
 @app.route("/logout", methods=['GET', 'POST'])
 def logout_user():
     session.clear()
