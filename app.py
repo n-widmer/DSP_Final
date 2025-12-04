@@ -1,12 +1,17 @@
 import os
 import re
 
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, redirect, url_for
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
-from crypto_helpers import encrypt_gender_age, decrypt_gender_age
 from dotenv import load_dotenv
+
+# 1) Load .env into environment first
 load_dotenv()
+
+# 2) then import crypto_helpers (so GENDER_AGE_KEY is visible)
+from crypto_helpers import encrypt_gender_age, decrypt_gender_age
+
 
 app = Flask(__name__)
 input_file = '.env'
@@ -57,41 +62,58 @@ def insert_patient(first_name, last_name, gender, age, weight, height, history):
 
 def fetch_all_patients_for_current_user():
     """
-    Fetch patients, decrypt gender+age locally, and hide names if Group R.
-    Uses session['group'] set at login.
+    Fetch patients from the DB, decrypt gender+age locally, and
+    shape the rows to match what the admin template expects.
+
+    - If session['group'] == 'R', we will still pass first_name/last_name,
+      but the template will decide whether to show them based on show_names.
+      (If you want extra safety, we COULD blank them here too.)
     """
     cursor = mysql.connection.cursor()
+
+    # IMPORTANT: use column names / aliases that match our template keys
     cursor.execute(
         """
-        SELECT patient_id,
-               first_name, last_name,
-               weight, height, health_history,
-               gender_age_nonce, gender_age_cipher
+        SELECT
+            first_name,
+            last_name,
+            Gender,
+            Age,
+            Weight,
+            Height,
+            health_history,
+            gender_age_nonce,
+            gender_age_cipher
         FROM Patients
         """
     )
     rows = cursor.fetchall()
     cursor.close()
 
-    group = session.get('group')  # 'H' or 'R'
+    group = session.get("group")
 
     processed = []
     for row in rows:
         nonce = row["gender_age_nonce"]
         cipher = row["gender_age_cipher"]
 
+        # Decrypt gender+age from ciphertext
         try:
             gender, age = decrypt_gender_age(nonce, cipher)
         except Exception:
-            gender, age = "ERROR", -1  # tampering / corruption
+            # Tampered / corrupted
+            gender, age = "ERROR", -1
 
-        row["gender"] = gender
-        row["age"] = age
+        # Make sure the keys our template uses are present:
+        # p.Gender, p.Age, p.Weight, p.Height, p.health_history
+        row["Gender"] = gender
+        row["Age"] = age
+        # Weight, Height, health_history already in row from SELECT
 
-        if group == 'R':
-            # Hide names from Group R
-            row["first_name"] = None
-            row["last_name"] = None
+        # If we want to be extra strict, we can blank names for Group R here:
+        # if group == "R":
+        #     row["first_name"] = None
+        #     row["last_name"] = None
 
         processed.append(row)
 
@@ -166,77 +188,122 @@ def login_user():
             password = request.form['password']
 
             cursor = mysql.connection.cursor()
-            query = "SELECT * FROM Users WHERE username = %s;"
-            cursor.execute(query, (username,))
+
+            # 1) Try to find the user in GroupH
+            cursor.execute("SELECT * FROM GroupH WHERE username = %s;", (username,))
             account = cursor.fetchone()
-            cursor.close()
+            group = None
 
             if account:
-                stored_password = account['password']
-                email = account['email']
-
-                if check_password_hash(stored_password, password):
-                    # determine group: check GroupH and GroupR
-                    cursor = mysql.connection.cursor()
-                    group = None
-
-                    cursor.execute("SELECT 1 FROM GroupH WHERE username = %s;", (username,))
-                    if cursor.fetchone():
-                        group = 'H'
-                    else:
-                        cursor.execute("SELECT 1 FROM GroupR WHERE username = %s;", (username,))
-                        if cursor.fetchone():
-                            group = 'R'
-
-                    cursor.close()
-
-                    # store in session
-                    session['username'] = username
-                    session['group'] = group
-
-                    message = "Login Successful"
-                    return render_template(
-                        "index.html",
-                        message=message,
-                        email=email,
-                        username=username
-                    )
-                else:
-                    message = "Invalid email or password"
-                    return render_template("login.html", message=message)
+                group = 'H'
             else:
-                message = "Invalid email or password"
+                # 2) If not in GroupH, try GroupR
+                cursor.execute("SELECT * FROM GroupR WHERE username = %s;", (username,))
+                account = cursor.fetchone()
+                if account:
+                    group = 'R'
+
+            cursor.close()
+
+            # 3) If we didn't find them in either table, invalid login
+            if not account or group is None:
+                message = "Invalid username or password"
                 return render_template("login.html", message=message)
 
-    # GET or incomplete form
+            # 4) Check the password hash from the group table
+            stored_password = account['password']
+            if check_password_hash(stored_password, password):
+                # Login successful: save identity and group in session
+                session['username'] = username
+                session['group'] = group
+
+                message = "Login Successful"
+                return render_template(
+                    "index.html",
+                    message=message,
+                    username=username,
+                    group=group
+                )
+            else:
+                message = "Invalid username or password"
+                return render_template("login.html", message=message)
+
+    # GET request or missing fields
     return render_template("login.html", message=message)
+
 
 
 @app.route("/Admin", methods=['GET'])
 def admin_page():
+    if "username" not in session:
+        return redirect(url_for("login_user"))
+
     username = session.get('username')
     group = session.get('group')
+    show_names = (group == 'H')
+
     cursor = mysql.connection.cursor()
-
-    if group == 'H':
-        query = """
-        SELECT first_name, last_name, Gender, Age, Weight, Height, health_history
+    cursor.execute(
+        """
+        SELECT
+            first_name,
+            last_name,
+            Gender,
+            Age,
+            Weight,
+            Height,
+            health_history,
+            gender_age_nonce,
+            gender_age_cipher
         FROM Patients
         """
-        cursor.execute(query)
-        patients = cursor.fetchall()
-        show_names = True
-    else:
-        query = """
-        SELECT Gender,Age, Weight, Height, health_history
-        FROM Patients
-        """
-        cursor.execute(query)
-        patients = cursor.fetchall()
-        show_names = False
-
+    )
+    rows = cursor.fetchall()
     cursor.close()
-    return render_template("admin.html", username=username, group=group, patients=patients, show_names=show_names)
+
+    patients = []
+    for row in rows:
+        nonce = row["gender_age_nonce"]
+        cipher = row["gender_age_cipher"]
+
+        if nonce is None or cipher is None:
+            # Old/legacy row: no encrypted data, keep DB's Gender/Age
+            gender = row.get("Gender")
+            age = row.get("Age")
+        else:
+            try:
+                gender, age = decrypt_gender_age(nonce, cipher)
+            except Exception:
+                # Real tampering or wrong key
+                gender, age = "ERROR", -1
+
+        # Overwrite with whatever we decided
+        row["Gender"] = gender
+        row["Age"] = age
+
+        # Hide names for Group R
+        if not show_names:
+            row["first_name"] = None
+            row["last_name"] = None
+
+        patients.append(row)
+
+    return render_template(
+        "Admin.html",   # or "admin.html" – just be consistent with filename
+        username=username,
+        group=group,
+        patients=patients,
+        show_names=show_names,
+    )
+
+ #I modified the admin route so that gender and age are stored
+ # encrypted in the DB using AES-GCM and are decrypted locally before display.
+ # Group H still sees names, Group R doesn’t. The DB never sees plaintext gender/age.”
+ #All of our existing (unencrypted) rows will show their normal Gender/Age values.
+ #Only rows that actually have encrypted data will be decrypted.
+ #If we later corrupt encrypted data or change the key, those rows will show ERROR/-1, which is what we want.
+
+
 
 
 @app.route("/logout", methods=['GET', 'POST'])
@@ -247,11 +314,9 @@ def logout_user():
 #patient routes (gav)
 @app.route("/patients")
 def show_patients():
-    if "username" not in session:
-        return redirect(url_for("login_user"))
+    # No separate patients page redirect to Admin Panel
+    return redirect(url_for("admin_page"))
 
-    patients = fetch_all_patients_for_current_user()
-    return render_template("patients.html", patients=patients)
 
 
 @app.route("/patients/add", methods=["GET", "POST"])
@@ -267,12 +332,13 @@ def add_patient_route():
     if request.method == "POST":
         first_name = request.form["first_name"]
         last_name = request.form["last_name"]
-        gender = request.form["gender"]
-        age = int(request.form["age"])
-        weight = float(request.form["weight"])
-        height = float(request.form["height"])
-        history = request.form["history"]
+        gender = request.form["Gender"]
+        age = int(request.form["Age"])
+        weight = float(request.form["Weight"])
+        height = float(request.form["Height"])
+        history = request.form["health_history"]
 
+        # This will AES-GCM encrypt gender+age and store nonce/cipher in DB
         insert_patient(first_name, last_name, gender, age, weight, height, history)
         message = "Patient added successfully."
 

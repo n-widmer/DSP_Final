@@ -21,6 +21,12 @@
         {% endif %}
     </header>
 
+     {% if group == 'H' %}
+     <div class="admin-action">
+        <a href="{{ url_for('add_patient_route') }}" class="admin-btn">Add Patient</a> <!-- url and function name were mismatched i fixed -->
+     </div>
+     {% endif %}
+
     <div class="table-wrapper">
         <table class="patients-table">
             <thead>
