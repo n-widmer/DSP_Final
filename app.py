@@ -1,5 +1,6 @@
 import os
 import re
+from typing import Optional, Dict, Any, List
 
 from flask import Flask, render_template, request, session, redirect, url_for
 from flask_mysqldb import MySQL
@@ -11,6 +12,8 @@ load_dotenv()
 
 # 2) then import crypto_helpers (so GENDER_AGE_KEY is visible)
 from crypto_helpers import encrypt_gender_age, decrypt_gender_age
+# 3) Import Merkle utilities, including the verification tools
+from merkle import compute_row_hash, build_root_from_hashes, bytes_to_hex, get_proof, verify_proof, hex_to_bytes
 
 
 app = Flask(__name__)
@@ -38,6 +41,64 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor' #account always returns a dictona
 
 mysql = MySQL(app)
 
+# -------------------------------------------------------------
+# !!! NEW: SECURE ROOT FOR TESTING INTEGRITY !!!
+# Set this to the root of the database when it was known to be clean.
+# Using the root you provided: b4f82e7a03ce104b7a449b791e11c20a7f94730b9670d34349582d6fef73be23
+# When testing, keep this constant while you tamper with the MySQL data.
+SECURED_ROOT_HEX: Optional[str] = "b4f82e7a03ce104b7a449b791e11c20a7f94730b9670d34349582d6fef73be23"
+# -------------------------------------------------------------
+
+
+# --- MERKLE TREE HELPERS ---
+
+def _calculate_merkle_root() -> Optional[str]:
+    """
+    1. Fetches all required patient fields in a deterministic order (ORDER BY id).
+    2. Calculates a Merkle leaf hash for each row.
+    3. Builds the Merkle root from the leaf hashes.
+    4. Returns the root as a hex string.
+    """
+    cursor = mysql.connection.cursor()
+    
+    cursor.execute(
+        """
+        SELECT
+            id, first_name, last_name, Weight, Height, health_history,
+            gender_age_nonce, gender_age_cipher
+        FROM Patients
+        ORDER BY id ASC
+        """
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+
+    if not rows:
+        return None
+
+    leaf_hashes = []
+    for row in rows:
+        # Values must be in the same order as defined for compute_row_hash
+        # and include all fields that should be covered by the integrity check.
+        values = [
+            row["id"],
+            row["first_name"],
+            row["last_name"],
+            row["Weight"],
+            row["Height"],
+            row["health_history"],
+            row["gender_age_nonce"],
+            row["gender_age_cipher"],
+        ]
+        leaf_hash = compute_row_hash(values)
+        leaf_hashes.append(leaf_hash)
+
+    root_bytes = build_root_from_hashes(leaf_hashes)
+    return bytes_to_hex(root_bytes)
+
+
+
+
 #start of patient helper functions
 def insert_patient(first_name, last_name, gender, age, weight, height, history):
     """
@@ -58,66 +119,19 @@ def insert_patient(first_name, last_name, gender, age, weight, height, history):
     )
     mysql.connection.commit()
     cursor.close()
+    
+    # Recalculate root after insertion ---
+    new_root = _calculate_merkle_root()
+    print(f"[MERKLE ROOT] RECALCULATED: {new_root}")
+    # In a real system, you would store this root securely here.
 
 
 def fetch_all_patients_for_current_user():
     """
-    Fetch patients from the DB, decrypt gender+age locally, and
-    shape the rows to match what the admin template expects.
-
-    - If session['group'] == 'R', we will still pass first_name/last_name,
-      but the template will decide whether to show them based on show_names.
-      (If you want extra safety, we COULD blank them here too.)
+    NOTE: This helper is now largely unused. Logic was moved to admin_page for Merkle integration.
     """
-    cursor = mysql.connection.cursor()
+    pass
 
-    # IMPORTANT: use column names / aliases that match our template keys
-    cursor.execute(
-        """
-        SELECT
-            first_name,
-            last_name,
-            Gender,
-            Age,
-            Weight,
-            Height,
-            health_history,
-            gender_age_nonce,
-            gender_age_cipher
-        FROM Patients
-        """
-    )
-    rows = cursor.fetchall()
-    cursor.close()
-
-    group = session.get("group")
-
-    processed = []
-    for row in rows:
-        nonce = row["gender_age_nonce"]
-        cipher = row["gender_age_cipher"]
-
-        # Decrypt gender+age from ciphertext
-        try:
-            gender, age = decrypt_gender_age(nonce, cipher)
-        except Exception:
-            # Tampered / corrupted
-            gender, age = "ERROR", -1
-
-        # Make sure the keys our template uses are present:
-        # p.Gender, p.Age, p.Weight, p.Height, p.health_history
-        row["Gender"] = gender
-        row["Age"] = age
-        # Weight, Height, health_history already in row from SELECT
-
-        # If we want to be extra strict, we can blank names for Group R here:
-        # if group == "R":
-        #     row["first_name"] = None
-        #     row["last_name"] = None
-
-        processed.append(row)
-
-    return processed
 #end of patient helper functions  
 
 def get_group_table(group_value):
@@ -241,11 +255,14 @@ def admin_page():
     username = session.get('username')
     group = session.get('group')
     show_names = (group == 'H')
+    integrity_failed_count = 0
 
+    # 1. Fetch ALL data deterministically for Merkle Tree construction
     cursor = mysql.connection.cursor()
     cursor.execute(
         """
         SELECT
+            id,
             first_name,
             last_name,
             Gender,
@@ -256,53 +273,112 @@ def admin_page():
             gender_age_nonce,
             gender_age_cipher
         FROM Patients
+        ORDER BY id ASC
         """
     )
     rows = cursor.fetchall()
     cursor.close()
 
+    leaf_hashes: List[bytes] = []
+    id_to_index: Dict[int, int] = {} # Maps patient ID to its index in the leaf_hashes list
+
+    for index, row in enumerate(rows):
+        id_to_index[row['id']] = index
+        # The values for leaf hashing must be consistent
+        values = [
+            row["id"],
+            row["first_name"],
+            row["last_name"],
+            row["Weight"],
+            row["Height"],
+            row["health_history"],
+            row["gender_age_nonce"],
+            row["gender_age_cipher"],
+        ]
+        leaf_hash = compute_row_hash(values)
+        leaf_hashes.append(leaf_hash)
+
+    # 2. Calculate the CURRENT Merkle Root (for comparison/debugging)
+    current_root_bytes = build_root_from_hashes(leaf_hashes)
+    current_root_hex = bytes_to_hex(current_root_bytes)
+    print(f"\n[MERKLE ROOT] Current Live Root (from DB query): {current_root_hex}")
+
+    # 3. SET UP VERIFICATION
+    if SECURED_ROOT_HEX is None:
+        print("[MERKLE AUDIT ERROR] SECURED_ROOT_HEX is not set. Skipping integrity check.")
+        verification_root_bytes = None
+    else:
+        # This is the key: we verify against the SECURED root, NOT the current live root.
+        verification_root_bytes = hex_to_bytes(SECURED_ROOT_HEX)
+        
     patients = []
     for row in rows:
+        # --- Decryption and group filtering logic (existing) ---
         nonce = row["gender_age_nonce"]
         cipher = row["gender_age_cipher"]
 
         if nonce is None or cipher is None:
-            # Old/legacy row: no encrypted data, keep DB's Gender/Age
             gender = row.get("Gender")
             age = row.get("Age")
         else:
             try:
                 gender, age = decrypt_gender_age(nonce, cipher)
             except Exception:
-                # Real tampering or wrong key
                 gender, age = "ERROR", -1
 
-        # Overwrite with whatever we decided
         row["Gender"] = gender
         row["Age"] = age
 
-        # Hide names for Group R
         if not show_names:
             row["first_name"] = None
             row["last_name"] = None
+        # --- End decryption/filtering ---
+        
+        # 4. Integrity Check (Simulated Client Check)
+        if verification_root_bytes is not None:
+            record_index = id_to_index[row['id']]
+            leaf_hash_for_verification = leaf_hashes[record_index]
+
+            # Generate the proof for this leaf based on the CURRENT (potentially tampered) tree state
+            proof_tuples = get_proof(leaf_hashes, record_index)
+            
+            # Convert proof tuples (bytes, bool) to (hex_str, bool)
+            proof_hex = [(bytes_to_hex(h), is_left) for h, is_left in proof_tuples]
+            proof_for_verification = [
+                (hex_to_bytes(h), is_left) for h, is_left in proof_hex
+            ]
+            
+            # C. Perform the verification: leaf + proof must lead back to the SECURED root
+            is_valid = verify_proof(
+                leaf_hash=leaf_hash_for_verification,
+                proof=proof_for_verification,
+                root=verification_root_bytes # <<< Use the SECURED root here
+            )
+            
+            if not is_valid:
+                integrity_failed_count += 1
+                print(f"!!! MERKLE PROOF FAILURE DETECTED: Record ID {row['id']} is corrupt or tampered with. !!!")
 
         patients.append(row)
+    
+    # D. Final status message to the terminal
+    if verification_root_bytes is not None:
+        if integrity_failed_count > 0:
+            print(f"\n[MERKLE TREE AUDIT RESULT]: {integrity_failed_count} out of {len(patients)} records FAILED integrity verification.")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("!!! WARNING: DATABASE INTEGRITY FAILURE. Check records with FAILED status above. !!!")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        else:
+            print(f"\n[MERKLE TREE AUDIT RESULT]: All {len(patients)} records PASSED integrity verification.")
+
 
     return render_template(
-        "Admin.html",   # or "admin.html" – just be consistent with filename
+        "Admin.html",
         username=username,
         group=group,
         patients=patients,
         show_names=show_names,
     )
-
- #I modified the admin route so that gender and age are stored
- # encrypted in the DB using AES-GCM and are decrypted locally before display.
- # Group H still sees names, Group R doesn’t. The DB never sees plaintext gender/age.”
- #All of our existing (unencrypted) rows will show their normal Gender/Age values.
- #Only rows that actually have encrypted data will be decrypted.
- #If we later corrupt encrypted data or change the key, those rows will show ERROR/-1, which is what we want.
-
 
 
 
@@ -315,52 +391,11 @@ def add_patient():
         message = 'Only group H can Modify patients table!'
         return render_template("login.html", message=message)
     
-    if request.method == 'POST':
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        Gender = request.form['Gender']
-        Age = request.form['Age']
-        Weight = request.form['Weight']
-        Height = request.form['Height']
-        health_history = request.form['health_history']
+    if request.method == 'GET':
+        return render_template("add_patient.html", username=username, group=group, message=None)
 
-        #Check common errors?
-        errors = []
-        if not first_name:
-            errors.append('First name is required')
-        if not last_name:
-            errors.append("Last name is required")
-        if not Gender:
-            errors.append('Gender is required')
+    return redirect(url_for('add_patient_route'))
 
-        try:
-            weight_val = float(Weight)
-            height_val = float(Height)
-        except ValueError:
-            errors.append("Weight and height must be numbers")
-
-        if errors:
-            return render_template("add_patient.html", message=" ".join(errors), username=username, group=group)
-
-        
-        #All error checks have cleared
-        #Generate insert query for Patients table
-
-        cursor = mysql.connection.cursor()
-        query = """
-        INSERT INTO Patients (first_name, last_name, Gender, Age, Weight, Height, health_history)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-        cursor.execute(query, (first_name, last_name, Gender, Age, Weight, Height, health_history))
-        mysql.connection.commit()
-        cursor.close()
-
-
-        #Go back to table view to see results
-        return redirect(url_for('admin_page'))
-
-    return render_template("add_patient.html", username=username, group=group, message=None)
-        
 
 @app.route("/logout", methods=['GET', 'POST'])
 def logout_user():
@@ -370,9 +405,7 @@ def logout_user():
 #patient routes (gav)
 @app.route("/patients")
 def show_patients():
-    # No separate patients page redirect to Admin Panel
     return redirect(url_for("admin_page"))
-
 
 
 @app.route("/patients/add", methods=["GET", "POST"])
@@ -380,7 +413,6 @@ def add_patient_route():
     if "username" not in session:
         return redirect(url_for("login_user"))
 
-    # Only Group H can add patients
     if session.get("group") != "H":
         return "You do not have permission to add patients.", 403
 
@@ -389,37 +421,24 @@ def add_patient_route():
         first_name = request.form["first_name"]
         last_name = request.form["last_name"]
         gender = request.form["Gender"]
-        age = int(request.form["Age"])
-        weight = float(request.form["Weight"])
-        height = float(request.form["Height"])
+        try:
+            age = int(request.form["Age"])
+            weight = float(request.form["Weight"])
+            height = float(request.form["Height"])
+        except ValueError:
+            message = "Age, Weight, and Height must be valid numbers."
+            return render_template("add_patient.html", message=message, group=session.get("group"))
+
         history = request.form["health_history"]
 
         # This will AES-GCM encrypt gender+age and store nonce/cipher in DB
         insert_patient(first_name, last_name, gender, age, weight, height, history)
-        message = "Patient added successfully."
+        
+        return redirect(url_for('admin_page'))
 
-    return render_template("add_patient.html", message=message)
+    return render_template("add_patient.html", message=message, group=session.get("group"))
 #patient routes end
 
 
-
-# def encrypt_phone(phone, key):
-#     cipher = AES.new(key, AES.MODE_CBC)
-#     ct_bytes = cipher.encrypt(pad(phone.encode('utf-8'), AES.block_size))
-#     iv = base64.b64encode(cipher.iv).decode('utf-8')
-#     ct = base64.b64encode(ct_bytes).decode('utf-8')
-#     return iv + ':' + ct
-
-# """def decrypt_phone(encrypted_phone, key):
-#     iv, ct = encrypted_phone.split(':')
-#     iv = base64.b64decode(iv)
-#     ct = base64.b64decode(ct)
-#     cipher = AES.new(key, AES.MODE_CBC, iv)
-#     pt = unpad(cipher.decrypt(ct), AES.block_size)
-#     return pt.decode('utf-8')"""
-
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-    
